@@ -33,32 +33,51 @@ public class QuadTree {
     }
 
     private QuadTreeNode buildTreeRecursive(int x, int y, int width, int height) {
+        // Ensure we don't go outside the image boundaries
+        if (x < 0 || y < 0 || x + width > image.getWidth() || y + height > image.getHeight()) {
+            x = Math.max(0, x);
+            y = Math.max(0, y);
+            width = Math.min(width, image.getWidth() - x);
+            height = Math.min(height, image.getHeight() - y);
+        }
+        
+        // Check for zero or negative dimensions
+        if (width <= 0 || height <= 0) {
+            return null;
+        }
+
         Color avgColor = computeAverageColor(x, y, width, height);
         double error = errorCalculator.computeError(image, x, y, width, height, avgColor);
 
-        // Kondisi penghentian: error sudah baik atau ukuran blok sudah di bawah minimum
-        if (error <= threshold || width <= minBlockSize || height <= minBlockSize ||
-            (width / 2 < minBlockSize || height / 2 < minBlockSize)) {
+        // Simplified stopping condition
+        boolean tooSmall = width <= minBlockSize || height <= minBlockSize;
+        boolean cannotSplitFurther = width <= 1 || height <= 1;
+        boolean errorAcceptable = error <= threshold;
+        
+        if (errorAcceptable || tooSmall || cannotSplitFurther) {
             return new QuadTreeNode(x, y, width, height, avgColor, error);
         }
 
-        // Jika masih perlu dibagi, buat node internal dan bagi menjadi 4 sub-blok.
+        // Create internal node and divide into 4 sub-blocks
         QuadTreeNode node = new QuadTreeNode(x, y, width, height, avgColor, error);
         node.children = new QuadTreeNode[4];
 
         int halfWidth = width / 2;
         int halfHeight = height / 2;
-        int width2 = width - halfWidth;
-        int height2 = height - halfHeight;
+        int width2 = width - halfWidth;  // Handles odd widths correctly
+        int height2 = height - halfHeight; // Handles odd heights correctly
 
         node.children[0] = buildTreeRecursive(x, y, halfWidth, halfHeight);
         node.children[1] = buildTreeRecursive(x + halfWidth, y, width2, halfHeight);
         node.children[2] = buildTreeRecursive(x, y + halfHeight, halfWidth, height2);
         node.children[3] = buildTreeRecursive(x + halfWidth, y + halfHeight, width2, height2);
 
-        // Setelah pembagian, rekam keadaan saat ini untuk GIF.
-        BufferedImage frame = renderTreeState();
-        gifFrames.add(frame);
+        // Only add a frame periodically to avoid memory issues with large images
+        // Add every 20 nodes or so (adjust as needed)
+        if (gifFrames.size() % 20 == 0) {
+            BufferedImage frame = renderTreeState();
+            gifFrames.add(frame);
+        }
 
         return node;
     }
@@ -66,8 +85,15 @@ public class QuadTree {
     private Color computeAverageColor(int x, int y, int width, int height) {
         long sumR = 0, sumG = 0, sumB = 0;
         int count = 0;
-        for (int j = y; j < y + height; j++) {
-            for (int i = x; i < x + width; i++) {
+        
+        // Make sure we stay within image boundaries
+        int endX = Math.min(x + width, image.getWidth());
+        int endY = Math.min(y + height, image.getHeight());
+        x = Math.max(0, x);
+        y = Math.max(0, y);
+        
+        for (int j = y; j < endY; j++) {
+            for (int i = x; i < endX; i++) {
                 Color c = new Color(image.getRGB(i, j));
                 sumR += c.getRed();
                 sumG += c.getGreen();
@@ -75,10 +101,13 @@ public class QuadTree {
                 count++;
             }
         }
-        if (count == 0) count = 1;
+        
+        if (count == 0) return Color.BLACK; // Avoid division by zero
+        
         int avgR = (int) (sumR / count);
         int avgG = (int) (sumG / count);
         int avgB = (int) (sumB / count);
+        
         return new Color(avgR, avgG, avgB);
     }
 
@@ -120,6 +149,8 @@ public class QuadTree {
     }
 
     private void fillCompressedImage(Graphics g, QuadTreeNode node) {
+        if (node == null) return;
+        
         if (node.isLeaf()) {
             g.setColor(node.averageColor);
             g.fillRect(node.x, node.y, node.width, node.height);

@@ -6,8 +6,15 @@ public class VarErrorCalc implements ErrorCalc {
     public double computeError(BufferedImage image, int x, int y, int width, int height, Color avgColor) {
         double sumVariance = 0;
         int count = 0;
-        for (int j = y; j < y + height; j++) {
-            for (int i = x; i < x + width; i++) {
+        
+        // Make sure we stay within image boundaries
+        int endX = Math.min(x + width, image.getWidth());
+        int endY = Math.min(y + height, image.getHeight());
+        x = Math.max(0, x);
+        y = Math.max(0, y);
+        
+        for (int j = y; j < endY; j++) {
+            for (int i = x; i < endX; i++) {
                 Color c = new Color(image.getRGB(i, j));
                 double diffR = c.getRed() - avgColor.getRed();
                 double diffG = c.getGreen() - avgColor.getGreen();
@@ -16,7 +23,9 @@ public class VarErrorCalc implements ErrorCalc {
                 count++;
             }
         }
-        if (count == 0) count = 1;
+        
+        if (count == 0) return 0.0; // Avoid division by zero
+        
         // Rata-rata variansi tiap kanal (dibagi 3)
         return (sumVariance / count) / 3.0;
     }

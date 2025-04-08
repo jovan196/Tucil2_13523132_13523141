@@ -3,8 +3,8 @@ import java.io.File;
 import java.io.IOException;
 import java.util.List;
 import java.util.Scanner;
-
 import javax.imageio.ImageIO;
+import javax.imageio.stream.FileImageOutputStream;
 import javax.imageio.stream.ImageOutputStream;
 
 public class Main {
@@ -53,7 +53,16 @@ public class Main {
         // Baca gambar input
         BufferedImage inputImage = null;
         try {
-            inputImage = ImageIO.read(new File(config.inputImagePath));
+            File inputFile = new File(config.inputImagePath);
+            if (!inputFile.exists()) {
+                System.err.println("File input tidak ditemukan: " + config.inputImagePath);
+                System.exit(1);
+            }
+            inputImage = ImageIO.read(inputFile);
+            if (inputImage == null) {
+                System.err.println("Format gambar tidak didukung: " + config.inputImagePath);
+                System.exit(1);
+            }
         } catch (IOException e) {
             System.err.println("Gagal membaca gambar input: " + e.getMessage());
             System.exit(1);
@@ -140,7 +149,14 @@ public class Main {
         List<BufferedImage> frames = QuadTree.getGifFrames();
         if (!frames.isEmpty()) {
             try {
-                ImageOutputStream output = ImageIO.createImageOutputStream(new File(config.gifOutputPath));
+                File gifFile = new File(config.gifOutputPath);
+                // Create parent directories if they don't exist
+                File parentDir = gifFile.getParentFile();
+                if (parentDir != null && !parentDir.exists()) {
+                    parentDir.mkdirs();
+                }
+                
+                ImageOutputStream output = new FileImageOutputStream(gifFile);
                 GIFSeqWriter gifWriter = new GIFSeqWriter(output, inputImage.getType(), config.gifDelay, true);
                 for (BufferedImage frame : frames) {
                     gifWriter.writeToSequence(frame);
