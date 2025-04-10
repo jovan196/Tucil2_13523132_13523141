@@ -19,9 +19,9 @@ public class Main {
         // [INPUT] Pilih metode perhitungan error
         System.out.println("Pilih metode perhitungan error:");
         System.out.println("1. Variance");
-        System.out.println("2. Mean Absolute Deviation (tidak diimplementasikan, gunakan Variance)");
-        System.out.println("3. Max Pixel Difference (tidak diimplementasikan, gunakan Variance)");
-        System.out.println("4. Entropy (tidak diimplementasikan, gunakan Variance)");
+        System.out.println("2. Mean Absolute Deviation");
+        System.out.println("3. Max Pixel Difference");
+        System.out.println("4. Entropy");
         System.out.println("5. Structural Similarity Index (SSIM)");
         System.out.print("Masukkan pilihan (angka): ");
         config.errorMethod = scanner.nextInt();
@@ -72,10 +72,17 @@ public class Main {
         
         // Pilih kalkulator error sesuai pilihan
         ErrorCalc errorCalc;
-        if (config.errorMethod == 5) {
-            errorCalc = new SSIMErrorCalc();
-        } else {
-            errorCalc = new VarErrorCalc();
+        switch (config.errorMethod) {
+            case 1 -> errorCalc = new VarErrorCalc();
+            case 2 -> errorCalc = new MADErrorCalc();
+            case 3 -> errorCalc = new PixelDiffErrorCalc();
+            case 4 -> errorCalc = new EntropyErrorCalc();
+            case 5 -> errorCalc = new SSIMErrorCalc();
+            default -> {
+                System.err.println("Metode perhitungan error tidak valid.");
+                System.exit(1);
+                return; // Tambahkan return untuk memastikan kode berhenti
+            }
         }
         
         // Jika mode target kompresi aktif, lakukan pencarian threshold optimal secara biner
