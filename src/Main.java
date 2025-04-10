@@ -130,7 +130,7 @@ public class Main {
         
         // Simpan gambar keluaran
         try {
-            ImageIO.write(outputImage, "png", new File(config.outputImagePath));
+            ImageIO.write(outputImage, "jpg", new File(config.outputImagePath));
         } catch (IOException e) {
             System.err.println("Gagal menulis gambar output: " + e.getMessage());
             System.exit(1);

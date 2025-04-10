@@ -34,12 +34,12 @@ public class SSIMErrorCalc implements ErrorCalc {
             for (int i = x; i < endX; i++) {
                 Color c = new Color(image.getRGB(i, j));
                 int val = 0;
-                if (channel == 'R') {
-                    val = c.getRed();
-                } else if (channel == 'G') {
-                    val = c.getGreen();
-                } else if (channel == 'B') {
-                    val = c.getBlue();
+                switch (channel) {
+                    case 'R' -> val = c.getRed();
+                    case 'G' -> val = c.getGreen();
+                    case 'B' -> val = c.getBlue();
+                    default -> {
+                    }
                 }
                 sum += val;
                 sumSq += val * val;
@@ -53,6 +53,7 @@ public class SSIMErrorCalc implements ErrorCalc {
         double mean = sum / count;
         double variance = sumSq / count - mean * mean;
         double covariance = covar / count - mean * avgVal;
+        if (variance < 1e-3) variance = 1e-3;
         
         // Calculate SSIM index
         double numerator = (2 * mean * avgVal + C1) * (2 * covariance + C2);
