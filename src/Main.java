@@ -30,7 +30,7 @@ public class Main {
             System.out.print("Masukkan ukuran blok minimum: ");
             config.minBlockSize = sc.nextInt();
             // Input target compression
-            System.out.print("Masukkan target persentase kompresi (floating number, 1.0 = 100%, 0 utk nonaktif): ");
+            System.out.print("Masukkan target persentase kompresi (floating number, 1,0 = 100%, 0 utk nonaktif): ");
             config.targetCompression = sc.nextDouble();
             sc.nextLine(); // Buang newline
             // Output path
