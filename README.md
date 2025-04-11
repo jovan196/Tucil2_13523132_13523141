@@ -1,7 +1,7 @@
 # Tugas Kecil 2 IF2211
 # Quadtree Image Compressor
 
-Oleh:
+Oleh: <br />
 13523132 - Jonathan Levi <br />
 13523141 - Jovandra Otniel P. S.
 
