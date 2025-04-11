@@ -5,19 +5,42 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class QuadTree {
+
     private BufferedImage image;
     private int minBlockSize;
     private double threshold;
     private ErrorCalc errorCalculator;
-    private QuadTreeNode root;
-    private List<BufferedImage> gifFrames; // Untuk menyimpan frame GIF (bonus)
 
+    private QuadTreeNode root;
+    private List<BufferedImage> gifFrames; // Menyimpan frame GIF (bonus)
+    
+    // Options for controlling GIF creation
+    private boolean recordGif = true;
+    private int maxFrames = 100; // Maximum number of frames to record
+    private int frameSkip = 1;   // Record every Nth frame (1 = record all)
+    private int frameCount = 0;  // Counter to track frames for skipping
+    private int totalFramesPossible = 0; // Counter for all potential frames
+    
     public QuadTree(BufferedImage image, double threshold, int minBlockSize, ErrorCalc errorCalculator) {
+        this(image, threshold, minBlockSize, errorCalculator, true, 100, 1);
+    }
+    
+    public QuadTree(BufferedImage image, double threshold, int minBlockSize, ErrorCalc errorCalculator,
+                   boolean recordGif, int maxFrames, int frameSkip) {
         this.image = image;
         this.threshold = threshold;
         this.minBlockSize = minBlockSize;
         this.errorCalculator = errorCalculator;
         this.gifFrames = new ArrayList<>();
+        this.recordGif = recordGif;
+        this.maxFrames = maxFrames;
+        this.frameSkip = frameSkip;
+        
+        // Disable GIF recording for large images automatically to prevent memory issues
+        if (recordGif && (image.getWidth() * image.getHeight() > 2000000)) { // > ~2 megapixels
+            System.out.println("Peringatan: Gambar besar terdeteksi. Perekaman GIF dibatasi hingga " + maxFrames + " frame.");
+            this.frameSkip = Math.max(2, frameSkip); // Skip more frames for large images
+        }
     }
 
     public QuadTreeNode getRoot() {
@@ -28,70 +51,115 @@ public class QuadTree {
         return gifFrames;
     }
 
+    /** 
+     * Membangun Quadtree; panggil ini di Main.
+     */
     public void buildTree() {
-        root = buildTreeRecursive(0, 0, image.getWidth(), image.getHeight());
+        root = buildTreeRecursive(0, 0, image.getWidth(), image.getHeight(), 0);
+        // Rekam frame final jika diperlukan
+        recordFrame();
     }
 
-    private QuadTreeNode buildTreeRecursive(int x, int y, int width, int height) {
-        // Ensure we don't go outside the image boundaries
-        if (x < 0 || y < 0 || x + width > image.getWidth() || y + height > image.getHeight()) {
-            x = Math.max(0, x);
-            y = Math.max(0, y);
-            width = Math.min(width, image.getWidth() - x);
-            height = Math.min(height, image.getHeight() - y);
+    /**
+     * Fungsi rekursif untuk membangun Quadtree.
+     * Jika error > threshold dan blok masih lebih besar dari minBlockSize, blok di-split.
+     */
+    private QuadTreeNode buildTreeRecursive(int x, int y, int width, int height, int depth) {
+        // Pastikan tidak keluar dari batas
+        if (x < 0) x = 0;
+        if (y < 0) y = 0;
+        if (x + width > image.getWidth()) {
+            width = image.getWidth() - x;
         }
-        
-        // Check for zero or negative dimensions
+        if (y + height > image.getHeight()) {
+            height = image.getHeight() - y;
+        }
         if (width <= 0 || height <= 0) {
             return null;
         }
 
+        // Hitung rata-rata warna
         Color avgColor = computeAverageColor(x, y, width, height);
+        // Hitung error
         double error = errorCalculator.computeError(image, x, y, width, height, avgColor);
 
-        // Simplified stopping condition
-        boolean tooSmall = width <= minBlockSize || height <= minBlockSize;
-        boolean cannotSplitFurther = width <= 1 || height <= 1;
-        boolean errorAcceptable = error <= threshold;
-        
-        if (errorAcceptable || tooSmall || cannotSplitFurther) {
+        boolean isBlockTooSmall = (width <= minBlockSize || height <= minBlockSize);
+        boolean errorAcceptable = (error <= threshold);
+
+        // Jika error sudah OK atau blok sudah kecil, jadikan daun
+        if (isBlockTooSmall || errorAcceptable) {
+            // Rekam frame ketika kita memutuskan daun
+            recordFrame();
             return new QuadTreeNode(x, y, width, height, avgColor, error);
         }
 
-        // Create internal node and divide into 4 sub-blocks
+        // Kalau masih butuh di-split
         QuadTreeNode node = new QuadTreeNode(x, y, width, height, avgColor, error);
         node.children = new QuadTreeNode[4];
 
+        // Rekam frame sebelum pembagian
+        recordFrame();
+
         int halfWidth = width / 2;
         int halfHeight = height / 2;
-        int width2 = width - halfWidth;  // Handles odd widths correctly
-        int height2 = height - halfHeight; // Handles odd heights correctly
+        int width2 = width - halfWidth;     // Menangani ganjil
+        int height2 = height - halfHeight;  // Menangani ganjil
 
-        node.children[0] = buildTreeRecursive(x, y, halfWidth, halfHeight);
-        node.children[1] = buildTreeRecursive(x + halfWidth, y, width2, halfHeight);
-        node.children[2] = buildTreeRecursive(x, y + halfHeight, halfWidth, height2);
-        node.children[3] = buildTreeRecursive(x + halfWidth, y + halfHeight, width2, height2);
-
-        // Only add a frame periodically to avoid memory issues with large images
-        // Add every 20 nodes or so (adjust as needed)
-        if (gifFrames.size() % 20 == 0) {
-            BufferedImage frame = renderTreeState();
-            gifFrames.add(frame);
-        }
+        // Split 4 sub-blok
+        node.children[0] = buildTreeRecursive(x,          y,          halfWidth,  halfHeight, depth+1);
+        recordFrame();
+        node.children[1] = buildTreeRecursive(x + halfWidth, y,       width2,     halfHeight, depth+1);
+        recordFrame();
+        node.children[2] = buildTreeRecursive(x,          y + halfHeight, halfWidth,  height2, depth+1);
+        recordFrame();
+        node.children[3] = buildTreeRecursive(x + halfWidth, y + halfHeight, width2, height2, depth+1);
+        recordFrame();
 
         return node;
     }
 
+    /**
+     * Merekam satu frame ke gifFrames, menampilkan "batas" di sekitar blok daun
+     * agar terlihat proses splitting.
+     * Dengan parameter depth untuk memungkinkan rekaman yang lebih selektif.
+     */
+    private void recordFrame() {
+        // Skip jika GIF recording dimatikan
+        if (!recordGif) return;
+        
+        // Hitung total kemungkinan frame
+        totalFramesPossible++;
+        
+        // Skip berdasarkan frameSkip
+        frameCount++;
+        if ((frameCount % frameSkip) != 0) return;
+        
+        // Stop jika sudah mencapai batas frame
+        if (gifFrames.size() >= maxFrames) return;
+        
+        // Untuk mendapatkan distribusi frame yang lebih merata, kita bisa coba
+        // skema sampling berdasarkan prediksi total frame
+        if (totalFramesPossible > maxFrames * 4 && gifFrames.size() > 10) {
+            // Semakin banyak frame yang dihasilkan, semakin selektif kita merekam
+            if (Math.random() > 0.2) return; // 80% chance to skip additional frames
+        }
+        
+        BufferedImage frame = renderTreeState();
+        gifFrames.add(frame);
+    }
+
+    /** 
+     * Hitung rata-rata warna pada blok.
+     */
     private Color computeAverageColor(int x, int y, int width, int height) {
         long sumR = 0, sumG = 0, sumB = 0;
         int count = 0;
-        
-        // Make sure we stay within image boundaries
-        int endX = Math.min(x + width, image.getWidth());
-        int endY = Math.min(y + height, image.getHeight());
-        x = Math.max(0, x);
-        y = Math.max(0, y);
-        
+
+        int endX = x + width;
+        int endY = y + height;
+        if (endX > image.getWidth()) endX = image.getWidth();
+        if (endY > image.getHeight()) endY = image.getHeight();
+
         for (int j = y; j < endY; j++) {
             for (int i = x; i < endX; i++) {
                 Color c = new Color(image.getRGB(i, j));
@@ -101,30 +169,70 @@ public class QuadTree {
                 count++;
             }
         }
-        
-        if (count == 0) return Color.BLACK; // Avoid division by zero
-        
-        int avgR = (int) (sumR / count);
-        int avgG = (int) (sumG / count);
-        int avgB = (int) (sumB / count);
-        
+        if (count == 0) return Color.BLACK;
+
+        int avgR = (int)(sumR / count);
+        int avgG = (int)(sumG / count);
+        int avgB = (int)(sumB / count);
         return new Color(avgR, avgG, avgB);
     }
 
     /**
-     * Menghasilkan frame gambar yang menggambarkan kondisi Quadtree saat ini.
-     * Frame ini digambar dengan menampilkan batas setiap blok (daun) menggunakan garis merah.
+     * Membuat gambar snapshot yang menampilkan boundary node daun
+     * di atas background gambar aslinya.
      */
     public BufferedImage renderTreeState() {
-        BufferedImage frame = new BufferedImage(image.getWidth(), image.getHeight(), image.getType());
-        Graphics g = frame.getGraphics();
-        // Gunakan gambar asli sebagai latar
-        g.drawImage(image, 0, 0, null);
-        drawBoundaries(g, root);
-        g.dispose();
+        // Jika gambarnya sangat besar, buat versi kecilnya untuk GIF
+        BufferedImage frame;
+        int maxDimension = 800; // Batasi ukuran frame
+        
+        if (image.getWidth() > maxDimension || image.getHeight() > maxDimension) {
+            // Scale down untuk frame GIF
+            double scale = (double) maxDimension / Math.max(image.getWidth(), image.getHeight());
+            int newWidth = (int) (image.getWidth() * scale);
+            int newHeight = (int) (image.getHeight() * scale);
+            
+            frame = new BufferedImage(newWidth, newHeight, BufferedImage.TYPE_INT_RGB);
+            Graphics g = frame.getGraphics();
+            g.drawImage(image, 0, 0, newWidth, newHeight, null);
+            
+            // Skala juga boundary
+            drawScaledBoundaries(g, root, scale);
+            g.dispose();
+        } else {
+            // Untuk gambar yang cukup kecil, gunakan ukuran asli
+            frame = new BufferedImage(image.getWidth(), image.getHeight(), BufferedImage.TYPE_INT_RGB);
+            Graphics g = frame.getGraphics();
+            g.drawImage(image, 0, 0, null);
+            drawBoundaries(g, root);
+            g.dispose();
+        }
+        
         return frame;
     }
+    
+    /**
+     * Menggambar kotak merah di setiap node daun dengan skala.
+     */
+    private void drawScaledBoundaries(Graphics g, QuadTreeNode node, double scale) {
+        if (node == null) return;
+        if (node.isLeaf()) {
+            g.setColor(Color.RED);
+            int x = (int)(node.x * scale);
+            int y = (int)(node.y * scale);
+            int width = (int)(node.width * scale);
+            int height = (int)(node.height * scale);
+            g.drawRect(x, y, width, height);
+        } else {
+            for (QuadTreeNode child : node.children) {
+                drawScaledBoundaries(g, child, scale);
+            }
+        }
+    }
 
+    /**
+     * Menggambar kotak merah di setiap node daun.
+     */
     private void drawBoundaries(Graphics g, QuadTreeNode node) {
         if (node == null) return;
         if (node.isLeaf()) {
@@ -138,7 +246,8 @@ public class QuadTree {
     }
 
     /**
-     * Menghasilkan gambar akhir hasil kompresi, dengan setiap blok daun diisi dengan warna rata–ratanya.
+     * Menghasilkan gambar akhir hasil kompresi,
+     * setiap node daun diisi warna rata-ratanya.
      */
     public BufferedImage generateCompressedImage() {
         BufferedImage output = new BufferedImage(image.getWidth(), image.getHeight(), image.getType());
@@ -150,7 +259,6 @@ public class QuadTree {
 
     private void fillCompressedImage(Graphics g, QuadTreeNode node) {
         if (node == null) return;
-        
         if (node.isLeaf()) {
             g.setColor(node.averageColor);
             g.fillRect(node.x, node.y, node.width, node.height);
@@ -168,11 +276,11 @@ public class QuadTree {
     private int countLeavesRecursive(QuadTreeNode node) {
         if (node == null) return 0;
         if (node.isLeaf()) return 1;
-        int count = 0;
+        int sum = 0;
         for (QuadTreeNode child : node.children) {
-            count += countLeavesRecursive(child);
+            sum += countLeavesRecursive(child);
         }
-        return count;
+        return sum;
     }
 
     public int getTreeDepth() {
