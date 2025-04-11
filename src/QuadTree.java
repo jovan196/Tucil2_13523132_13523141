@@ -14,12 +14,11 @@ public class QuadTree {
     private QuadTreeNode root;
     private List<BufferedImage> gifFrames; // Menyimpan frame GIF (bonus)
     
-    // Options for controlling GIF creation
     private boolean recordGif = true;
-    private int maxFrames = 100; // Maximum number of frames to record
-    private int frameSkip = 1;   // Record every Nth frame (1 = record all)
-    private int frameCount = 0;  // Counter to track frames for skipping
-    private int totalFramesPossible = 0; // Counter for all potential frames
+    private int maxFrames = 100; // Jumlah maksimum frame yang akan direkam
+    private int frameSkip = 1;   // Rekam setiap frame ke-N (1 = rekam semua)
+    private int frameCount = 0;  // Penghitung untuk melacak frame yang dilewati
+    private int totalFramesPossible = 0; // Penghitung untuk semua frame yang mungkin
     
     public QuadTree(BufferedImage image, double threshold, int minBlockSize, ErrorCalc errorCalculator) {
         this(image, threshold, minBlockSize, errorCalculator, true, 100, 1);
@@ -36,10 +35,10 @@ public class QuadTree {
         this.maxFrames = maxFrames;
         this.frameSkip = frameSkip;
         
-        // Disable GIF recording for large images automatically to prevent memory issues
+        // Menonaktifkan perekaman GIF berukuran besar untuk menghindari masalah memori
         if (recordGif && (image.getWidth() * image.getHeight() > 2000000)) { // > ~2 megapixels
             System.out.println("Peringatan: Gambar besar terdeteksi. Perekaman GIF dibatasi hingga " + maxFrames + " frame.");
-            this.frameSkip = Math.max(2, frameSkip); // Skip more frames for large images
+            this.frameSkip = Math.max(2, frameSkip); // Skip frame untuk gambar berukuran besar
         }
     }
 
