@@ -41,7 +41,7 @@ public class QuadTree {
             height = Math.min(height, image.getHeight() - y);
         }
         
-        // Check for zero or negative dimensions
+        // Cek dimensi nol/negatif
         if (width <= 0 || height <= 0) {
             return null;
         }
@@ -49,7 +49,7 @@ public class QuadTree {
         Color avgColor = computeAverageColor(x, y, width, height);
         double error = errorCalculator.computeError(image, x, y, width, height, avgColor);
 
-        // Simplified stopping condition
+        // Kondisi untuk berhenti (disederhanakan)
         boolean tooSmall = width <= minBlockSize || height <= minBlockSize;
         boolean cannotSplitFurther = width <= 1 || height <= 1;
         boolean errorAcceptable = error <= threshold;
@@ -58,22 +58,22 @@ public class QuadTree {
             return new QuadTreeNode(x, y, width, height, avgColor, error);
         }
 
-        // Create internal node and divide into 4 sub-blocks
+        // Buat internal node, bagi jadi 4 subblok
         QuadTreeNode node = new QuadTreeNode(x, y, width, height, avgColor, error);
         node.children = new QuadTreeNode[4];
 
         int halfWidth = width / 2;
         int halfHeight = height / 2;
-        int width2 = width - halfWidth;  // Handles odd widths correctly
-        int height2 = height - halfHeight; // Handles odd heights correctly
+        int width2 = width - halfWidth;
+        int height2 = height - halfHeight;
 
         node.children[0] = buildTreeRecursive(x, y, halfWidth, halfHeight);
         node.children[1] = buildTreeRecursive(x + halfWidth, y, width2, halfHeight);
         node.children[2] = buildTreeRecursive(x, y + halfHeight, halfWidth, height2);
         node.children[3] = buildTreeRecursive(x + halfWidth, y + halfHeight, width2, height2);
 
-        // Only add a frame periodically to avoid memory issues with large images
-        // Add every 20 nodes or so (adjust as needed)
+        // Tambahkan sebuah frame secara periodik (tiap 20 node)
+        // untuk mencegah masalah memori dengan gambar besar
         if (gifFrames.size() % 20 == 0) {
             BufferedImage frame = renderTreeState();
             gifFrames.add(frame);
@@ -102,7 +102,7 @@ public class QuadTree {
             }
         }
         
-        if (count == 0) return Color.BLACK; // Avoid division by zero
+        if (count == 0) return Color.BLACK; // Jika dibagi 0
         
         int avgR = (int) (sumR / count);
         int avgG = (int) (sumG / count);
@@ -137,9 +137,7 @@ public class QuadTree {
         }
     }
 
-    /**
-     * Menghasilkan gambar akhir hasil kompresi, dengan setiap blok daun diisi dengan warna rata–ratanya.
-     */
+    //Menghasilkan gambar akhir hasil kompresi, dengan setiap blok daun diisi dengan warna rata–ratanya.
     public BufferedImage generateCompressedImage() {
         BufferedImage output = new BufferedImage(image.getWidth(), image.getHeight(), image.getType());
         Graphics g = output.getGraphics();
