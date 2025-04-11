@@ -7,7 +7,7 @@ public class VarErrorCalc implements ErrorCalc {
         double sumVariance = 0;
         int count = 0;
         
-        // Make sure we stay within image boundaries
+        // Pastikan tidak melewati ukuran gambar
         int endX = Math.min(x + width, image.getWidth());
         int endY = Math.min(y + height, image.getHeight());
         x = Math.max(0, x);
@@ -24,7 +24,7 @@ public class VarErrorCalc implements ErrorCalc {
             }
         }
         
-        if (count == 0) return 0.0; // Avoid division by zero
+        if (count == 0) return 0.0; // Jika dibagi 0
         
         // Rata-rata variansi tiap kanal (dibagi 3)
         return (sumVariance / count) / 3.0;
