@@ -80,6 +80,7 @@ public class Main {
             case 5 -> errorCalc = new SSIMErrorCalc();
             default -> {
                 System.err.println("Metode perhitungan error tidak valid.");
+                scanner.close();
                 System.exit(1);
                 return; // Tambahkan return untuk memastikan kode berhenti
             }
