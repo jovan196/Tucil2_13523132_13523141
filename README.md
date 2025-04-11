@@ -2,7 +2,7 @@
 # Quadtree Image Compressor
 
 Oleh:
-13523132 - Jonathan Levi
+13523132 - Jonathan Levi\n
 13523141 - Jovandra Otniel P. S.
 
 ## a. Penjelasan Singkat Program
